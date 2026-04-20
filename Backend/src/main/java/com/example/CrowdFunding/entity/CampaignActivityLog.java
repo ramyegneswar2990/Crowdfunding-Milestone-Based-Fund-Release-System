@@ -5,8 +5,7 @@ import lombok.*;
 
 import java.time.Instant;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -22,10 +21,14 @@ public class CampaignActivityLog {
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "campaign_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Campaign campaign;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_user_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private User actor;
 
     @Column(nullable = false, length = 80)

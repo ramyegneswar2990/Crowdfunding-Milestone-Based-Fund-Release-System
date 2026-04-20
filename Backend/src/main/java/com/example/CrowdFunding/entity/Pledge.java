@@ -7,8 +7,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -25,10 +24,14 @@ public class Pledge {
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "campaign_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Campaign campaign;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "backer_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private User backer;
 
     @Column(nullable = false, precision = 19, scale = 2)

@@ -6,8 +6,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -22,6 +21,8 @@ public class EscrowHolding {
 
     @OneToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "campaign_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Campaign campaign;
 
     @Column(nullable = false, precision = 19, scale = 2)

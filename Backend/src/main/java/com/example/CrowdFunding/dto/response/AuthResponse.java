@@ -3,8 +3,7 @@ package com.example.CrowdFunding.dto.response;
 import com.example.CrowdFunding.enums.UserRole;
 import lombok.*;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

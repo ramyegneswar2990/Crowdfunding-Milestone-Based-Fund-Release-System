@@ -7,8 +7,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -24,6 +23,8 @@ public class Milestone {
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "campaign_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Campaign campaign;
 
     @Column(nullable = false)
@@ -47,6 +48,8 @@ public class Milestone {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "verified_by_user_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private User verifiedBy;
 
     @Column(nullable = false, updatable = false)

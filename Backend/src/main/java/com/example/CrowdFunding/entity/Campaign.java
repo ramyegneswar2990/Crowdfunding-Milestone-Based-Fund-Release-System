@@ -8,8 +8,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -25,6 +24,8 @@ public class Campaign {
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "campaigner_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private User campaigner;
 
     @Column(nullable = false, length = 200)
