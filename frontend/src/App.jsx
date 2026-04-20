@@ -1,121 +1,125 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 
-function App() {
-  const [count, setCount] = useState(0)
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute   from './components/ProtectedRoute';
+import RoleRoute        from './components/RoleRoute';
+import MainLayout       from './layouts/MainLayout';
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+// ── Lazy page stubs (replace with real pages as you build them) ──────────────
+// Auth
+import LoginPage    from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 
-      <div className="ticks"></div>
+// Shared / role-gated
+import DashboardPage      from './pages/DashboardPage';
+import CampaignsPage      from './pages/CampaignsPage';
+import CreateCampaignPage from './pages/CreateCampaignPage';
+import MilestonesPage     from './pages/MilestonesPage';
+import Pledges            from './pages/Pledges';
+import Escrow             from './pages/Escrow';
+import Transactions       from './pages/Transactions';
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+const App = () => (
+  <BrowserRouter>
+    <AuthProvider>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1e293b',
+            color: '#f1f5f9',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '10px',
+            fontSize: '0.875rem',
+          },
+        }}
+      />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
-}
+      <Routes>
+        {/* ── Public ──────────────────────────────────────────────── */}
+        <Route path="/login"    element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-export default App
+        {/* ── Protected (any authenticated user) ──────────────────── */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <MainLayout><DashboardPage /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/campaigns"
+          element={
+            <ProtectedRoute>
+              <MainLayout><CampaignsPage /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── CAMPAIGNER only ──────────────────────────────────────── */}
+        <Route
+          path="/create-campaign"
+          element={
+            <ProtectedRoute>
+              <RoleRoute roles={['CAMPAIGNER']}>
+                <MainLayout><CreateCampaignPage /></MainLayout>
+              </RoleRoute>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/milestones"
+          element={
+            <ProtectedRoute>
+              <RoleRoute roles={['CAMPAIGNER', 'VERIFIER']}>
+                <MainLayout><MilestonesPage /></MainLayout>
+              </RoleRoute>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── BACKER only ──────────────────────────────────────────── */}
+        <Route
+          path="/pledges"
+          element={
+            <ProtectedRoute>
+              <MainLayout><Pledges /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── ADMIN only ───────────────────────────────────────────── */}
+        <Route
+          path="/escrow/:campaignId"
+          element={
+            <ProtectedRoute>
+              <MainLayout><Escrow /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Redirect bare /escrow to dashboard */}
+        <Route path="/escrow" element={<Navigate to="/dashboard" replace />} />
+
+        <Route
+          path="/transactions"
+          element={
+            <ProtectedRoute>
+              <MainLayout><Transactions /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── Fallbacks ────────────────────────────────────────────── */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </AuthProvider>
+  </BrowserRouter>
+);
+
+export default App;
