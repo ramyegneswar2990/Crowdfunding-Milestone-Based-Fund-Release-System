@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import RoleRoute from '../components/RoleRoute';
+import { useLocation } from 'react-router-dom';
 import {
   getActiveCampaignsAPI,
   createPledgeAPI,
@@ -20,16 +21,21 @@ const isCampaignLive = (endDate) =>
   !endDate || new Date(endDate) > new Date();
 
 const Pledges = () => {
+  // ── Pre-selected campaign passed from CampaignDetail → "Pledge" button ──
+  const location          = useLocation();
+  const defaultCampaignId = location.state?.campaignId ?? null;
+  const autoOpened        = useRef(false);  // guard — open modal only once on mount
+
   const [campaigns, setCampaigns]     = useState([]);
   const [pledges, setPledges]         = useState([]);
   const [loadingInit, setLoadingInit] = useState(true);
 
   // Modal
-  const [modalOpen, setModalOpen]           = useState(false);
+  const [modalOpen, setModalOpen]               = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
-  const [amount, setAmount]                 = useState('');
-  const [amountError, setAmountError]       = useState('');
-  const [submitting, setSubmitting]         = useState(false);
+  const [amount, setAmount]                     = useState('');
+  const [amountError, setAmountError]           = useState('');
+  const [submitting, setSubmitting]             = useState(false);
 
   const fetchCampaigns = useCallback(async () => {
     const { data } = await getActiveCampaignsAPI();
@@ -53,6 +59,18 @@ const Pledges = () => {
       }
     })();
   }, [fetchCampaigns, fetchPledges]);
+
+  // ── Auto-open pledge modal when arriving from CampaignDetail ─────────────
+  useEffect(() => {
+    if (!defaultCampaignId || campaigns.length === 0 || autoOpened.current) return;
+    const target = campaigns.find((c) => c.id === Number(defaultCampaignId));
+    if (target) {
+      autoOpened.current = true;
+      openModal(target);
+    }
+  // openModal is a stable closure — intentionally excluded from deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaigns, defaultCampaignId]);
 
   /* ── Modal helpers ── */
   const openModal = (campaign) => {

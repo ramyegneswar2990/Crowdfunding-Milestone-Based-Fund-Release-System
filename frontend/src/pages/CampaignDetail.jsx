@@ -94,13 +94,24 @@ const CampaignDetail = () => {
           </div>
 
           <div className="links-section">
-            <Link to={`/campaigns/${id}/milestones`} className="link-card">
+            <Link to={`/milestones`} className="link-card">
               <div className="link-icon"><Target /></div>
               <div className="link-text">
                 <h3>View Milestones</h3>
                 <p>Track project progress and fund releases</p>
               </div>
             </Link>
+
+            {/* ADMIN: deep-link to per-campaign Escrow page */}
+            {user.role === 'ADMIN' && (
+              <Link to={`/escrow/${id}`} className="link-card escrow-link-card">
+                <div className="link-icon">🔐</div>
+                <div className="link-text">
+                  <h3>Manage Escrow</h3>
+                  <p>Review balance and release funds for verified milestones</p>
+                </div>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -125,7 +136,10 @@ const CampaignDetail = () => {
             </div>
 
             {user.role === 'BACKER' && campaign.status === 'ACTIVE' && (
-              <button className="btn btn-primary btn-block btn-lg mt-4">
+              <button
+                className="btn btn-primary btn-block btn-lg mt-4"
+                onClick={() => navigate('/pledges', { state: { campaignId: campaign.id } })}
+              >
                 Pledge to this Campaign
               </button>
             )}

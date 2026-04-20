@@ -7,8 +7,7 @@ import './MainLayout.css';
 const NAV_LINKS = {
   ADMIN: [
     { label: 'Dashboard',    to: '/dashboard' },
-    { label: 'Campaigns',    to: '/campaigns' },
-    { label: 'Escrow',       to: '/escrow' },
+    { label: 'Campaigns',    to: '/campaigns' },   // Escrow is accessed per-campaign from CampaignDetail
     { label: 'Transactions', to: '/transactions' },
   ],
   CAMPAIGNER: [

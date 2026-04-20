@@ -1,24 +1,48 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
-import { AuthProvider } from './context/AuthContext';
-import ProtectedRoute   from './components/ProtectedRoute';
-import RoleRoute        from './components/RoleRoute';
-import MainLayout       from './layouts/MainLayout';
+import { AuthProvider }  from './context/AuthContext';
+import ProtectedRoute    from './components/ProtectedRoute';
+import RoleRoute         from './components/RoleRoute';
+import MainLayout        from './layouts/MainLayout';
 
-// ── Lazy page stubs (replace with real pages as you build them) ──────────────
-// Auth
+// ── Auth ──────────────────────────────────────────────────────────────────────
 import LoginPage    from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 
-// Shared / role-gated
-import DashboardPage      from './pages/DashboardPage';
-import CampaignsPage      from './pages/CampaignsPage';
-import CreateCampaignPage from './pages/CreateCampaignPage';
-import MilestonesPage     from './pages/MilestonesPage';
-import Pledges            from './pages/Pledges';
-import Escrow             from './pages/Escrow';
-import Transactions       from './pages/Transactions';
+// ── Shared (any authenticated role) ──────────────────────────────────────────
+import DashboardPage from './pages/DashboardPage';
+import Campaigns     from './pages/Campaigns';
+import CampaignDetail from './pages/CampaignDetail';
+
+// ── CAMPAIGNER ────────────────────────────────────────────────────────────────
+import CreateCampaign from './pages/CreateCampaign';
+import Milestones     from './pages/Milestones';
+
+// ── BACKER ────────────────────────────────────────────────────────────────────
+import Pledges from './pages/Pledges';
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────────
+import Escrow       from './pages/Escrow';
+import Transactions from './pages/Transactions';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: wraps a page in ProtectedRoute + MainLayout
+const Protected = ({ children }) => (
+  <ProtectedRoute>
+    <MainLayout>{children}</MainLayout>
+  </ProtectedRoute>
+);
+
+// Helper: wraps a page in ProtectedRoute + RoleRoute + MainLayout
+const RoleProtected = ({ roles, children }) => (
+  <ProtectedRoute>
+    <RoleRoute roles={roles}>
+      <MainLayout>{children}</MainLayout>
+    </RoleRoute>
+  </ProtectedRoute>
+);
+// ─────────────────────────────────────────────────────────────────────────────
 
 const App = () => (
   <BrowserRouter>
@@ -37,86 +61,68 @@ const App = () => (
       />
 
       <Routes>
-        {/* ── Public ──────────────────────────────────────────────── */}
+        {/* ── Public ──────────────────────────────────────────────────── */}
         <Route path="/login"    element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
-        {/* ── Protected (any authenticated user) ──────────────────── */}
-        <Route
-          path="/dashboard"
+        {/* ── Any authenticated user ───────────────────────────────────── */}
+        <Route path="/dashboard"
+          element={<Protected><DashboardPage /></Protected>}
+        />
+        <Route path="/campaigns"
+          element={<Protected><Campaigns /></Protected>}
+        />
+        <Route path="/campaigns/:id"
+          element={<Protected><CampaignDetail /></Protected>}
+        />
+
+        {/* ── CAMPAIGNER only ──────────────────────────────────────────── */}
+        <Route path="/create-campaign"
           element={
-            <ProtectedRoute>
-              <MainLayout><DashboardPage /></MainLayout>
-            </ProtectedRoute>
+            <RoleProtected roles={['CAMPAIGNER']}>
+              <CreateCampaign />
+            </RoleProtected>
+          }
+        />
+        <Route path="/milestones"
+          element={
+            <RoleProtected roles={['CAMPAIGNER', 'VERIFIER']}>
+              <Milestones />
+            </RoleProtected>
           }
         />
 
-        <Route
-          path="/campaigns"
+        {/* ── BACKER only ──────────────────────────────────────────────── */}
+        <Route path="/pledges"
           element={
-            <ProtectedRoute>
-              <MainLayout><CampaignsPage /></MainLayout>
-            </ProtectedRoute>
+            <RoleProtected roles={['BACKER']}>
+              <Pledges />
+            </RoleProtected>
           }
         />
 
-        {/* ── CAMPAIGNER only ──────────────────────────────────────── */}
-        <Route
-          path="/create-campaign"
+        {/* ── ADMIN only ───────────────────────────────────────────────── */}
+        <Route path="/escrow/:campaignId"
           element={
-            <ProtectedRoute>
-              <RoleRoute roles={['CAMPAIGNER']}>
-                <MainLayout><CreateCampaignPage /></MainLayout>
-              </RoleRoute>
-            </ProtectedRoute>
+            <RoleProtected roles={['ADMIN']}>
+              <Escrow />
+            </RoleProtected>
+          }
+        />
+        {/* Bare /escrow → redirect ADMIN to pick a campaign first */}
+        <Route path="/escrow" element={<Navigate to="/campaigns" replace />} />
+
+        <Route path="/transactions"
+          element={
+            <RoleProtected roles={['ADMIN']}>
+              <Transactions />
+            </RoleProtected>
           }
         />
 
-        <Route
-          path="/milestones"
-          element={
-            <ProtectedRoute>
-              <RoleRoute roles={['CAMPAIGNER', 'VERIFIER']}>
-                <MainLayout><MilestonesPage /></MainLayout>
-              </RoleRoute>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* ── BACKER only ──────────────────────────────────────────── */}
-        <Route
-          path="/pledges"
-          element={
-            <ProtectedRoute>
-              <MainLayout><Pledges /></MainLayout>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* ── ADMIN only ───────────────────────────────────────────── */}
-        <Route
-          path="/escrow/:campaignId"
-          element={
-            <ProtectedRoute>
-              <MainLayout><Escrow /></MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        {/* Redirect bare /escrow to dashboard */}
-        <Route path="/escrow" element={<Navigate to="/dashboard" replace />} />
-
-        <Route
-          path="/transactions"
-          element={
-            <ProtectedRoute>
-              <MainLayout><Transactions /></MainLayout>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* ── Fallbacks ────────────────────────────────────────────── */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* ── Fallbacks ─────────────────────────────────────────────────── */}
+        <Route path="/"  element={<Navigate to="/dashboard" replace />} />
+        <Route path="*"  element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </AuthProvider>
   </BrowserRouter>
