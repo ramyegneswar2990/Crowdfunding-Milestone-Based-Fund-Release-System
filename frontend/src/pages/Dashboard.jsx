@@ -79,7 +79,7 @@ const Dashboard = () => {
           </div>
         </div>
         {user.role === 'CAMPAIGNER' && (
-          <Link to="/campaigns/create" className="btn btn-primary">
+          <Link to="/create-campaign" className="btn btn-primary">
             <Rocket className="btn-icon" /> Create Campaign
           </Link>
         )}

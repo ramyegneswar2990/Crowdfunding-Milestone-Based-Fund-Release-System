@@ -15,6 +15,7 @@ public class CampaignResponse {
     private Long campaignerId;
     private String title;
     private String description;
+    private String category;
     private BigDecimal fundingGoal;
     private BigDecimal totalPledged;
     private BigDecimal totalReleased;

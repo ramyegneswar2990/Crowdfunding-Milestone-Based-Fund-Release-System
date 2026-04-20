@@ -6,6 +6,7 @@ public enum CampaignStatus {
     ACTIVE,
     FUNDED,
     IN_PROGRESS,
+    FAILED,
     COMPLETED,
     CANCELLED
 }

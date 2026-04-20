@@ -18,6 +18,7 @@ import java.time.LocalDate;
         @Index(name = "idx_campaigns_campaigner_id", columnList = "campaigner_id")
 })
 public class Campaign {
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -33,6 +34,9 @@ public class Campaign {
 
     @Column(nullable = false, length = 2000)
     private String description;
+
+    @Column(length = 100)
+    private String category;
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal fundingGoal;

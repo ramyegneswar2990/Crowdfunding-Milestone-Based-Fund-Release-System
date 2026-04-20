@@ -24,14 +24,22 @@ const Campaigns = () => {
       } else if (user.role === 'BACKER') {
         response = await campaignService.getActive();
       } else if (user.role === 'CAMPAIGNER') {
-        response = await campaignService.getByCampaigner(user.id);
+        // Backend does not expose /campaigns?campaignerId=...
+        // Fetch all and filter client-side for current campaigner.
+        response = await campaignService.getAll();
       } else {
         response = await campaignService.getAll(); // Fallback
       }
-      
-      let filteredData = response.data;
+
+      const allCampaigns = Array.isArray(response?.data?.data) ? response.data.data : [];
+      let filteredData = allCampaigns;
+
+      if (user.role === 'CAMPAIGNER') {
+        filteredData = allCampaigns.filter((c) => String(c.campaignerId) === String(user.id));
+      }
+
       if (filter !== 'ALL') {
-        filteredData = filteredData.filter(c => c.status === filter);
+        filteredData = filteredData.filter((c) => c.status === filter);
       }
       setCampaigns(filteredData);
     } catch (error) {
@@ -60,6 +68,7 @@ const Campaigns = () => {
       case 'PENDING_APPROVAL': return 'bg-yellow-100 text-yellow-800';
       case 'ACTIVE': return 'bg-green-100 text-green-800';
       case 'FUNDED': return 'bg-blue-100 text-blue-800';
+      case 'FAILED': return 'bg-orange-100 text-orange-800';
       case 'COMPLETED': return 'bg-teal-100 text-teal-800';
       case 'CANCELLED': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -74,7 +83,7 @@ const Campaigns = () => {
           <p>Discover and manage milestone-based crowdfunding projects</p>
         </div>
         {user.role === 'CAMPAIGNER' && (
-          <Link to="/campaigns/create" className="btn btn-primary">
+          <Link to="/create-campaign" className="btn btn-primary">
             <Plus className="btn-icon" /> Create New
           </Link>
         )}
@@ -93,6 +102,7 @@ const Campaigns = () => {
             <option value="ACTIVE">Active</option>
             <option value="PENDING_APPROVAL">Pending Approval</option>
             <option value="FUNDED">Funded</option>
+            <option value="FAILED">Failed</option>
             <option value="COMPLETED">Completed</option>
           </select>
         </div>
@@ -112,6 +122,7 @@ const Campaigns = () => {
               </div>
               <div className="card-content">
                 <h3>{campaign.title}</h3>
+                <p className="card-description"><strong>Category:</strong> {campaign.category ?? 'General'}</p>
                 <p className="card-description">{campaign.description}</p>
                 
                 <div className="card-stats">

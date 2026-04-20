@@ -16,9 +16,9 @@ export const cancelCampaignAPI     = (id)   => api.put(`/campaigns/${id}/cancel`
 // ─── Milestones ──────────────────────────────────────────────────────────────
 export const getMilestonesAPI    = (campaignId) => api.get(`/milestones/campaign/${campaignId}`);
 export const createMilestoneAPI  = (data)       => api.post('/milestones', data);
-export const submitMilestoneAPI  = (id)         => api.put(`/milestones/${id}/submit`);
+export const submitMilestoneAPI  = (id, data)   => api.put(`/milestones/${id}/submit`, data);
 export const verifyMilestoneAPI  = (id)         => api.put(`/milestones/${id}/verify`);
-export const rejectMilestoneAPI  = (id)         => api.put(`/milestones/${id}/reject`);
+export const rejectMilestoneAPI  = (id, data)   => api.put(`/milestones/${id}/reject`, data);
 
 // ─── Pledges ─────────────────────────────────────────────────────────────────
 export const createPledgeAPI = (data) => api.post('/pledges', data);

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -29,5 +30,8 @@ public class CreateMilestoneRequest {
     @NotNull
     @DecimalMin(value = "0.01")
     private BigDecimal amountToRelease;
+
+    @NotNull
+    private LocalDate dueDate;
 }
 

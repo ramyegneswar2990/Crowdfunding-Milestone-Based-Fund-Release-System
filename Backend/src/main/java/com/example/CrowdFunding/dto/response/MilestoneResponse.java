@@ -4,6 +4,7 @@ import com.example.CrowdFunding.enums.MilestoneStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -16,6 +17,9 @@ public class MilestoneResponse {
     private String title;
     private String description;
     private BigDecimal amountToRelease;
+    private LocalDate dueDate;
     private MilestoneStatus status;
+    private String rejectionReason;
+    private String billReference;
 }
 

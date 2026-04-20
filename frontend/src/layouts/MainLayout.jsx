@@ -1,64 +1,17 @@
-import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import './MainLayout.css';
-
-// ─── Role-based nav config ────────────────────────────────────────────────────
-const NAV_LINKS = {
-  ADMIN: [
-    { label: 'Dashboard',    to: '/dashboard' },
-    { label: 'Campaigns',    to: '/campaigns' },   // Escrow is accessed per-campaign from CampaignDetail
-    { label: 'Transactions', to: '/transactions' },
-  ],
-  CAMPAIGNER: [
-    { label: 'Dashboard',        to: '/dashboard' },
-    { label: 'My Campaigns',     to: '/campaigns' },
-    { label: 'Create Campaign',  to: '/create-campaign' },
-    { label: 'Milestones',       to: '/milestones' },
-  ],
-  BACKER: [
-    { label: 'Dashboard',   to: '/dashboard' },
-    { label: 'Campaigns',   to: '/campaigns' },
-    { label: 'My Pledges',  to: '/pledges' },
-  ],
-  VERIFIER: [
-    { label: 'Dashboard',  to: '/dashboard' },
-    { label: 'Milestones', to: '/milestones' },
-  ],
-};
-
-// ─── Role badge colours ───────────────────────────────────────────────────────
-const ROLE_COLORS = {
-  ADMIN:      '#ef4444',
-  CAMPAIGNER: '#f59e0b',
-  BACKER:     '#3b82f6',
-  VERIFIER:   '#10b981',
-};
-
-// ─── SVG Icons ────────────────────────────────────────────────────────────────
-const icons = {
-  Dashboard:       '⊞',
-  Campaigns:       '🚀',
-  'My Campaigns':  '🚀',
-  'Create Campaign': '✦',
-  Milestones:      '🏁',
-  'My Pledges':    '💳',
-  Escrow:          '🔐',
-  Transactions:    '📊',
-  Menu:            '☰',
-  Close:           '✕',
-  Logout:          '⎋',
-};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const MainLayout = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const role  = user?.role ?? 'BACKER';
-  const links = NAV_LINKS[role] ?? [];
-  const badgeColor = ROLE_COLORS[role] ?? '#6b7280';
+  const role = user?.role ?? 'BACKER';
+  const roleLinks = {
+    ADMIN: [{ label: 'Campaigns', to: '/campaigns' }, { label: 'Transactions', to: '/transactions' }],
+    CAMPAIGNER: [{ label: 'My Campaigns', to: '/campaigns' }, { label: 'Create', to: '/create-campaign' }, { label: 'Milestones', to: '/milestones' }],
+    BACKER: [{ label: 'Campaigns', to: '/campaigns' }, { label: 'Pledges', to: '/pledges' }],
+    VERIFIER: [{ label: 'Milestones', to: '/milestones' }],
+  };
 
   const handleLogout = () => {
     logout();
@@ -66,114 +19,51 @@ const MainLayout = ({ children }) => {
   };
 
   return (
-    <div className="ml-wrapper">
-      {/* ── Overlay (mobile) ─────────────────────────────────────────────── */}
-      {sidebarOpen && (
-        <div
-          className="ml-overlay"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-      <aside className={`ml-sidebar${sidebarOpen ? ' ml-sidebar--open' : ''}`}>
-        {/* Brand */}
-        <div className="ml-brand">
-          <span className="ml-brand-icon">◈</span>
-          <span className="ml-brand-name">FundFlow</span>
-          <button
-            className="ml-sidebar-close"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close sidebar"
-          >
-            {icons.Close}
-          </button>
-        </div>
-
-        {/* Nav */}
-        <nav className="ml-nav" aria-label="Main navigation">
-          <ul className="ml-nav-list">
-            {links.map(({ label, to }) => (
-              <li key={to}>
+    <div className="app-auth-theme min-h-screen">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-card/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-[1200px] items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary-gradient text-xs font-bold">✦</span>
+              <span className="text-lg font-extrabold">FundFlow</span>
+            </div>
+            <nav className="flex items-center gap-2">
+              <NavLink
+                to="/dashboard"
+                className={({ isActive }) =>
+                  `rounded-full px-3 py-1.5 text-sm ${isActive ? 'bg-foreground text-background font-semibold' : 'text-muted-foreground'}`
+                }
+              >
+                Dashboard
+              </NavLink>
+              {(roleLinks[role] ?? []).map(({ label, to }) => (
                 <NavLink
+                  key={to}
                   to={to}
                   className={({ isActive }) =>
-                    `ml-nav-link${isActive ? ' ml-nav-link--active' : ''}`
+                    `rounded-full px-3 py-1.5 text-sm ${isActive ? 'bg-muted font-semibold' : 'text-muted-foreground'}`
                   }
-                  onClick={() => setSidebarOpen(false)}
                 >
-                  <span className="ml-nav-icon" aria-hidden="true">
-                    {icons[label] ?? '•'}
-                  </span>
-                  <span className="ml-nav-label">{label}</span>
+                  {label}
                 </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        {/* Sidebar footer */}
-        <div className="ml-sidebar-footer">
-          <button
-            id="logout-btn"
-            className="ml-logout-btn"
-            onClick={handleLogout}
-            aria-label="Logout"
-          >
-            <span aria-hidden="true">{icons.Logout}</span>
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main area ────────────────────────────────────────────────────── */}
-      <div className="ml-main">
-        {/* Topbar */}
-        <header className="ml-topbar">
-          <button
-            className="ml-menu-btn"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open sidebar"
-          >
-            {icons.Menu}
-          </button>
-
-          <div className="ml-topbar-right">
-            <div className="ml-user-info">
-              <div className="ml-avatar" aria-hidden="true">
-                {user?.name?.charAt(0)?.toUpperCase() ?? 'U'}
-              </div>
-              <div className="ml-user-meta">
-                <span className="ml-user-name">
-                  {user?.name ?? user?.email ?? 'User'}
-                </span>
-                <span
-                  className="ml-role-badge"
-                  style={{ '--badge-color': badgeColor }}
-                >
-                  {role}
-                </span>
-              </div>
-            </div>
-
-            <button
-              id="topbar-logout-btn"
-              className="ml-topbar-logout"
-              onClick={handleLogout}
-              aria-label="Logout"
-              title="Logout"
-            >
-              {icons.Logout} Logout
+              ))}
+            </nav>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold">{role}</span>
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold">
+              {(user?.name ?? user?.email ?? 'U').charAt(0).toUpperCase()}
+            </span>
+            <button onClick={handleLogout} className="rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground">
+              Logout
             </button>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Page content */}
-        <main className="ml-content">
-          {children}
-        </main>
-      </div>
+      <main className="mx-auto w-full max-w-[1200px] px-4 py-6">
+        {children}
+      </main>
     </div>
   );
 };

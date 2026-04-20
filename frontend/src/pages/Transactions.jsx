@@ -47,7 +47,10 @@ const Transactions = () => {
   /* Load campaign list once */
   useEffect(() => {
     getCampaignsAPI()
-      .then(({ data }) => setCampaigns(data))
+      .then((res) => {
+        const list = res?.data?.data;
+        setCampaigns(Array.isArray(list) ? list : []);
+      })
       .catch(() => toast.error('Failed to load campaigns'))
       .finally(() => setLoadingCampaigns(false));
   }, []);
@@ -56,8 +59,9 @@ const Transactions = () => {
     setLoadingTx(true);
     setTransactions([]);
     try {
-      const { data } = await getTransactionsAPI(id);
-      setTransactions(data);
+      const res = await getTransactionsAPI(id);
+      const list = res?.data?.data;
+      setTransactions(Array.isArray(list) ? list : []);
     } catch (err) {
       toast.error(err?.response?.data?.message ?? 'Failed to load transactions');
     } finally {
@@ -72,8 +76,12 @@ const Transactions = () => {
     else setTransactions([]);
   };
 
-  const selectedCampaign = campaigns.find((c) => String(c.id) === String(campaignId));
-  const total = transactions.reduce((s, t) => s + Number(t.amountReleased ?? t.amount ?? 0), 0);
+  const selectedCampaign = Array.isArray(campaigns)
+    ? campaigns.find((c) => String(c.id) === String(campaignId))
+    : undefined;
+  const total = Array.isArray(transactions)
+    ? transactions.reduce((s, t) => s + Number(t.amountReleased ?? t.amount ?? 0), 0)
+    : 0;
 
   return (
     <RoleRoute roles={['ADMIN']}>
@@ -105,7 +113,7 @@ const Transactions = () => {
             disabled={loadingCampaigns}
           >
             <option value="">— Choose a campaign —</option>
-            {campaigns.map((c) => (
+            {(Array.isArray(campaigns) ? campaigns : []).map((c) => (
               <option key={c.id} value={c.id}>{c.title ?? c.name}</option>
             ))}
           </select>

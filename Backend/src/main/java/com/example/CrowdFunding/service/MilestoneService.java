@@ -16,6 +16,7 @@ import com.example.CrowdFunding.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
@@ -27,18 +28,20 @@ public class MilestoneService {
     private final UserRepository userRepository;
     private final CampaignService campaignService;
     private final ActivityLogService activityLogService;
+    private final FundReleaseService fundReleaseService;
 
     public MilestoneService(MilestoneRepository milestoneRepository,
                             UserRepository userRepository,
                             CampaignService campaignService,
-                            ActivityLogService activityLogService) {
+                            ActivityLogService activityLogService,
+                            FundReleaseService fundReleaseService) {
         this.milestoneRepository = milestoneRepository;
         this.userRepository = userRepository;
         this.campaignService = campaignService;
         this.activityLogService = activityLogService;
+        this.fundReleaseService = fundReleaseService;
     }
 
-    // ─── CREATE ─────────────────────────────────────────────────────────────
 
     public MilestoneResponse createMilestone(CreateMilestoneRequest req, String callerEmail) {
         User caller = userByEmail(callerEmail);
@@ -64,14 +67,38 @@ public class MilestoneService {
             throw new BusinessRuleException("A campaign cannot have more than 10 milestones");
         }
 
+        List<Milestone> existingMilestones = milestoneRepository.findByCampaignIdOrderBySequenceNumberAsc(campaign.getId());
+        BigDecimal plannedSum = existingMilestones.stream()
+                .map(Milestone::getAmountToRelease)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal projectedSum = plannedSum.add(req.getAmountToRelease());
+        BigDecimal maxPossibleCollection = campaign.getFundingGoal().multiply(new BigDecimal("1.5"));
+        if (projectedSum.compareTo(maxPossibleCollection) > 0) {
+            throw new BusinessRuleException("Total milestone amount cannot exceed 1.5x funding goal");
+        }
+
         Milestone milestone = Milestone.builder()
                 .campaign(campaign)
                 .sequenceNumber(req.getSequenceNumber())
                 .title(req.getTitle())
                 .description(req.getDescription())
                 .amountToRelease(req.getAmountToRelease())
+                .dueDate(req.getDueDate())
                 .status(MilestoneStatus.LOCKED)
                 .build();
+
+        if (req.getDueDate().isBefore(campaign.getStartDate()) || req.getDueDate().isAfter(campaign.getEndDate())) {
+            throw new BusinessRuleException("Milestone dueDate must be within campaign start and end dates");
+        }
+
+        existingMilestones.stream()
+                .filter(existing -> existing.getSequenceNumber().equals(req.getSequenceNumber() - 1))
+                .findFirst()
+                .ifPresent(previous -> {
+                    if (!req.getDueDate().isAfter(previous.getDueDate())) {
+                        throw new BusinessRuleException("Milestone dueDate must be after previous milestone dueDate");
+                    }
+                });
         milestone = milestoneRepository.save(milestone);
 
         activityLogService.log(campaign, caller, "MILESTONE_CREATED",
@@ -79,9 +106,8 @@ public class MilestoneService {
         return toResponse(milestone);
     }
 
-    // ─── SUBMIT ──────────────────────────────────────────────────────────────
-
-    public MilestoneResponse submitMilestone(Long milestoneId, String callerEmail) {
+   
+    public MilestoneResponse submitMilestone(Long milestoneId, String billReference, String callerEmail) {
         Milestone m = getOrThrow(milestoneId);
         User caller = userByEmail(callerEmail);
 
@@ -92,9 +118,14 @@ public class MilestoneService {
             throw new BusinessRuleException(
                     "Milestone must be ACTIVE or REJECTED to submit. Current: " + m.getStatus());
         }
+        if (billReference == null || !billReference.matches("^[0-9]{8}$")) {
+            throw new BusinessRuleException("Bill reference must be exactly 8 digits");
+        }
 
         m.setStatus(MilestoneStatus.SUBMITTED);
         m.setSubmittedAt(Instant.now());
+        m.setRejectionReason(null);
+        m.setBillReference(billReference);
         m = milestoneRepository.save(m);
 
         activityLogService.log(m.getCampaign(), caller, "MILESTONE_SUBMITTED",
@@ -102,7 +133,7 @@ public class MilestoneService {
         return toResponse(m);
     }
 
-    // ─── VERIFY ──────────────────────────────────────────────────────────────
+  
 
     public MilestoneResponse verifyMilestone(Long milestoneId, String callerEmail) {
         Milestone m = getOrThrow(milestoneId);
@@ -115,23 +146,29 @@ public class MilestoneService {
             throw new BusinessRuleException(
                     "Milestone must be SUBMITTED to verify. Current: " + m.getStatus());
         }
+        if (m.getBillReference() == null || !m.getBillReference().matches("^[0-9]{8}$")) {
+            throw new BusinessRuleException("Cannot verify milestone without a valid 8-digit bill reference");
+        }
 
         m.setStatus(MilestoneStatus.VERIFIED);
         m.setVerifiedAt(Instant.now());
         m.setVerifiedBy(caller);
+        m.setRejectionReason(null);
         m = milestoneRepository.save(m);
 
-        activityLogService.log(m.getCampaign(), caller, "MILESTONE_VERIFIED",
-                "Milestone #" + m.getSequenceNumber() + " verified by " + caller.getEmail());
+        fundReleaseService.autoReleaseForVerifiedMilestone(m, caller);
 
-        // Unlock next milestone in sequence
+        activityLogService.log(m.getCampaign(), caller, "MILESTONE_VERIFIED",
+                "Milestone #" + m.getSequenceNumber() + " verified and released by " + caller.getEmail());
+
+        
         unlockNext(m);
-        return toResponse(m);
+        return toResponse(getOrThrow(milestoneId));
     }
 
-    // ─── REJECT ──────────────────────────────────────────────────────────────
+    
 
-    public MilestoneResponse rejectMilestone(Long milestoneId, String callerEmail) {
+    public MilestoneResponse rejectMilestone(Long milestoneId, String reason, String callerEmail) {
         Milestone m = getOrThrow(milestoneId);
         User caller = userByEmail(callerEmail);
 
@@ -145,17 +182,21 @@ public class MilestoneService {
 
         m.setStatus(MilestoneStatus.REJECTED);
         m.setVerifiedBy(caller);
+        m.setRejectionReason(reason);
         m = milestoneRepository.save(m);
 
         activityLogService.log(m.getCampaign(), caller, "MILESTONE_REJECTED",
-                "Milestone #" + m.getSequenceNumber() + " rejected — re-submission allowed");
+                "Milestone #" + m.getSequenceNumber() + " rejected — reason: " + reason);
         return toResponse(m);
     }
 
-    // ─── LIST ────────────────────────────────────────────────────────────────
+ 
 
     @Transactional(readOnly = true)
     public List<MilestoneResponse> getByCampaign(Long campaignId) {
+      
+        ensureFirstMilestoneUnlockedIfEligible(campaignId);
+
         return milestoneRepository.findByCampaignIdOrderBySequenceNumberAsc(campaignId)
                 .stream().map(this::toResponse).toList();
     }
@@ -166,7 +207,7 @@ public class MilestoneService {
     public void unlockFirstMilestone(Long campaignId) {
         milestoneRepository.findByCampaignIdOrderBySequenceNumberAsc(campaignId)
                 .stream()
-                .filter(m -> m.getSequenceNumber() == 1)
+                .filter(m -> m.getStatus() == MilestoneStatus.LOCKED)
                 .findFirst()
                 .ifPresent(m -> {
                     m.setStatus(MilestoneStatus.ACTIVE);
@@ -184,6 +225,30 @@ public class MilestoneService {
                     m.setStatus(MilestoneStatus.ACTIVE);
                     milestoneRepository.save(m);
                 });
+    }
+
+    private void ensureFirstMilestoneUnlockedIfEligible(Long campaignId) {
+        Campaign campaign = campaignService.getOrThrow(campaignId);
+        CampaignStatus st = campaign.getStatus();
+        if (st != CampaignStatus.ACTIVE && st != CampaignStatus.FUNDED && st != CampaignStatus.IN_PROGRESS) return;
+
+        List<Milestone> all = milestoneRepository.findByCampaignIdOrderBySequenceNumberAsc(campaignId);
+        if (all.isEmpty()) return;
+
+        boolean alreadyUnlocked = all.stream().anyMatch(m ->
+                m.getStatus() == MilestoneStatus.ACTIVE
+                        || m.getStatus() == MilestoneStatus.SUBMITTED
+                        || m.getStatus() == MilestoneStatus.VERIFIED
+                        || m.getStatus() == MilestoneStatus.RELEASED
+                        || m.getStatus() == MilestoneStatus.REJECTED
+        );
+        if (alreadyUnlocked) return;
+
+        Milestone first = all.get(0);
+        if (first.getStatus() != MilestoneStatus.LOCKED) return;
+
+        first.setStatus(MilestoneStatus.ACTIVE);
+        milestoneRepository.save(first);
     }
 
     public Milestone getOrThrow(Long id) {
@@ -204,7 +269,10 @@ public class MilestoneService {
                 .title(m.getTitle())
                 .description(m.getDescription())
                 .amountToRelease(m.getAmountToRelease())
+                .dueDate(m.getDueDate())
                 .status(m.getStatus())
+                .rejectionReason(m.getRejectionReason())
+                .billReference(m.getBillReference())
                 .build();
     }
 }

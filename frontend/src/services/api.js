@@ -40,9 +40,9 @@ export const campaignService = {
 export const milestoneService = {
   getByCampaign: (campaignId) => api.get(`/milestones/campaign/${campaignId}`),
   create: (data) => api.post('/milestones', data),
-  submit: (id) => api.put(`/milestones/${id}/submit`),
+  submit: (id, data) => api.put(`/milestones/${id}/submit`, data),
   verify: (id) => api.put(`/milestones/${id}/verify`),
-  reject: (id) => api.put(`/milestones/${id}/reject`),
+  reject: (id, data) => api.put(`/milestones/${id}/reject`, data),
 };
 
 export default api;

@@ -18,13 +18,25 @@ const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await loginAPI(form);
-      // Expected: { token: '...', user: { name, email, role } }
-      login(data.token, data.user);
-      toast.success(`Welcome back, ${data.user?.name ?? 'User'}!`);
+      const res = await loginAPI(form);
+      // Backend returns: { success, message, data: { token, tokenType, userId, email, role }, errors }
+      const auth = res?.data?.data;
+      if (!auth?.token) {
+        throw new Error(res?.data?.message ?? 'Login failed. Missing token.');
+      }
+
+      const user = {
+        id: auth.userId,
+        email: auth.email,
+        role: auth.role,
+        name: auth.email, // backend AuthResponse doesn't include name; use email as display fallback
+      };
+
+      login(auth.token, user);
+      toast.success(`Welcome back, ${user.name ?? 'User'}!`);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      toast.error(err?.response?.data?.message ?? 'Login failed. Please try again.');
+      toast.error(err?.response?.data?.message ?? err?.message ?? 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -32,6 +44,8 @@ const LoginPage = () => {
 
   return (
     <div className="auth-page">
+      <div className="auth-glow auth-glow--one" />
+      <div className="auth-glow auth-glow--two" />
       <div className="auth-card">
         <div className="auth-brand">
           <span className="auth-brand-icon">◈</span>
@@ -39,6 +53,19 @@ const LoginPage = () => {
         </div>
         <h1 className="auth-title">Sign in to your account</h1>
         <p className="auth-sub">Welcome back — let's pick up where you left off.</p>
+
+        <div className="auth-social-stack">
+          <button type="button" className="auth-social-btn">
+            Continue with Google
+          </button>
+          <button type="button" className="auth-social-btn">
+            Continue with GitHub
+          </button>
+        </div>
+
+        <div className="auth-divider">
+          <span>Or</span>
+        </div>
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <div className="auth-field">

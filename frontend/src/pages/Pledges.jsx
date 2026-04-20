@@ -38,13 +38,15 @@ const Pledges = () => {
   const [submitting, setSubmitting]             = useState(false);
 
   const fetchCampaigns = useCallback(async () => {
-    const { data } = await getActiveCampaignsAPI();
-    setCampaigns(data);
+    const res = await getActiveCampaignsAPI();
+    const list = res?.data?.data;
+    setCampaigns(Array.isArray(list) ? list : []);
   }, []);
 
   const fetchPledges = useCallback(async () => {
-    const { data } = await getPledgesAPI();
-    setPledges(data);
+    const res = await getPledgesAPI();
+    const list = res?.data?.data;
+    setPledges(Array.isArray(list) ? list : []);
   }, []);
 
   useEffect(() => {

@@ -19,6 +19,10 @@ public class CreateCampaignRequest {
     @Size(max = 2000)
     private String description;
 
+    @NotBlank
+    @Size(max = 100)
+    private String category;
+
     @NotNull
     @DecimalMin(value = "50000.00")
     @DecimalMax(value = "5000000.00")

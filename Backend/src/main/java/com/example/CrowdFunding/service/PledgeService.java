@@ -84,8 +84,10 @@ public class PledgeService {
                 .backer(backer)
                 .campaign(campaign)
                 .amount(req.getAmount())
-                .status(PledgeStatus.COMPLETED)
+                .status(PledgeStatus.PENDING)
                 .build();
+        pledge = pledgeRepository.save(pledge);
+        pledge.setStatus(PledgeStatus.COMPLETED);
         pledge = pledgeRepository.save(pledge);
 
         // Update campaign.totalPledged and persist

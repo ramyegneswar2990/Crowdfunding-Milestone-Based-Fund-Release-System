@@ -47,7 +47,6 @@ public class FundReleaseService {
         this.activityLogService = activityLogService;
     }
 
-    // ─── RELEASE ─────────────────────────────────────────────────────────────
 
     public TransactionResponse releaseFunds(Long milestoneId, String adminEmail) {
         User admin = userByEmail(adminEmail);
@@ -58,49 +57,33 @@ public class FundReleaseService {
         Milestone milestone = milestoneRepository.findById(milestoneId)
                 .orElseThrow(() -> new ResourceNotFoundException("Milestone not found: " + milestoneId));
 
-        // Guard 1: milestone must be VERIFIED
         if (milestone.getStatus() != MilestoneStatus.VERIFIED) {
             throw new BusinessRuleException(
                     "Milestone must be VERIFIED before release. Current: " + milestone.getStatus());
         }
 
-        // Guard 2: prevent double-release
         if (txnRepository.existsByMilestoneId(milestoneId)) {
             throw new BusinessRuleException("Funds for milestone " + milestoneId + " already released");
         }
 
-        Campaign campaign = milestone.getCampaign();
-
-        // Guard 3: escrow balance >= release amount (checked inside deductFunds)
-        escrowService.deductFunds(campaign.getId(), milestone.getAmountToRelease());
-
-        // Update campaign.totalReleased
-        campaign.setTotalReleased(campaign.getTotalReleased().add(milestone.getAmountToRelease()));
-        campaignRepository.save(campaign);
-
-        // Mark milestone RELEASED
-        milestone.setStatus(MilestoneStatus.RELEASED);
-        milestoneRepository.save(milestone);
-
-        // Persist transaction record
-        FundReleaseTransaction txn = FundReleaseTransaction.builder()
-                .campaign(campaign)
-                .milestone(milestone)
-                .amountReleased(milestone.getAmountToRelease())
-                .build();
-        txn = txnRepository.save(txn);
-
-        activityLogService.log(campaign, admin, "FUNDS_RELEASED",
-                "Released ₹" + milestone.getAmountToRelease()
-                        + " for milestone #" + milestone.getSequenceNumber());
-
-        // If all milestones are RELEASED → campaign COMPLETED
-        checkAndMarkCompleted(campaign, admin);
-
-        return toResponse(txn);
+        return releaseVerifiedMilestone(milestone, admin, "FUNDS_RELEASED");
     }
 
-    // ─── LIST ─────────────────────────────────────────────────────────────────
+    public TransactionResponse autoReleaseForVerifiedMilestone(Milestone milestone, User verifier) {
+        if (verifier.getRole() != UserRole.VERIFIER) {
+            throw new UnauthorizedActionException("Only VERIFIER can trigger auto-release in this flow");
+        }
+        if (milestone.getStatus() != MilestoneStatus.VERIFIED) {
+            throw new BusinessRuleException(
+                    "Milestone must be VERIFIED before auto-release. Current: " + milestone.getStatus());
+        }
+        if (txnRepository.existsByMilestoneId(milestone.getId())) {
+            throw new BusinessRuleException("Funds for milestone " + milestone.getId() + " already released");
+        }
+
+        return releaseVerifiedMilestone(milestone, verifier, "FUNDS_RELEASED_AUTO");
+    }
+
 
     @Transactional(readOnly = true)
     public List<TransactionResponse> getTransactionsByCampaign(Long campaignId) {
@@ -108,7 +91,6 @@ public class FundReleaseService {
                 .stream().map(this::toResponse).toList();
     }
 
-    // ─── INTERNAL ────────────────────────────────────────────────────────────
 
     private void checkAndMarkCompleted(Campaign campaign, User actor) {
         List<Milestone> all = milestoneRepository
@@ -116,6 +98,36 @@ public class FundReleaseService {
         if (!all.isEmpty() && all.stream().allMatch(m -> m.getStatus() == MilestoneStatus.RELEASED)) {
             campaignService.markCompleted(campaign, actor);
         }
+    }
+
+    private TransactionResponse releaseVerifiedMilestone(Milestone milestone, User actor, String actionCode) {
+        Campaign campaign = milestone.getCampaign();
+
+        if (campaign.getTotalReleased().add(milestone.getAmountToRelease()).compareTo(campaign.getTotalPledged()) > 0) {
+            throw new BusinessRuleException("Milestone release exceeds available pledged funds");
+        }
+
+        escrowService.deductFunds(campaign.getId(), milestone.getAmountToRelease());
+
+        campaign.setTotalReleased(campaign.getTotalReleased().add(milestone.getAmountToRelease()));
+        campaignRepository.save(campaign);
+
+        milestone.setStatus(MilestoneStatus.RELEASED);
+        milestoneRepository.save(milestone);
+
+        FundReleaseTransaction txn = FundReleaseTransaction.builder()
+                .campaign(campaign)
+                .milestone(milestone)
+                .amountReleased(milestone.getAmountToRelease())
+                .build();
+        txn = txnRepository.save(txn);
+
+        activityLogService.log(campaign, actor, actionCode,
+                "Released ₹" + milestone.getAmountToRelease()
+                        + " for milestone #" + milestone.getSequenceNumber());
+
+        checkAndMarkCompleted(campaign, actor);
+        return toResponse(txn);
     }
 
     private User userByEmail(String email) {

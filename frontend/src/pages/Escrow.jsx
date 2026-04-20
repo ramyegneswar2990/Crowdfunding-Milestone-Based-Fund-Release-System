@@ -24,7 +24,10 @@ const Escrow = () => {
   /* ── Load campaign list once ── */
   useEffect(() => {
     getCampaignsAPI()
-      .then(({ data }) => setCampaigns(data))
+      .then((res) => {
+        const list = res?.data?.data;
+        setCampaigns(Array.isArray(list) ? list : []);
+      })
       .catch(() => toast.error('Failed to load campaigns'))
       .finally(() => setLoadingCampaigns(false));
   }, []);
@@ -35,8 +38,8 @@ const Escrow = () => {
     setLoadingEscrow(true);
     setEscrow(null);
     try {
-      const { data } = await getEscrowAPI(id);
-      setEscrow(data);
+      const res = await getEscrowAPI(id);
+      setEscrow(res?.data?.data ?? null);
     } catch (err) {
       toast.error(err?.response?.data?.message ?? 'Failed to load escrow data');
     } finally {

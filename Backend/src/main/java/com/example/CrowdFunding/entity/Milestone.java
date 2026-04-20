@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -39,9 +40,18 @@ public class Milestone {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amountToRelease;
 
+    @Column
+    private LocalDate dueDate;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private MilestoneStatus status;
+
+    @Column(length = 1000)
+    private String rejectionReason;
+
+    @Column(length = 1000)
+    private String billReference;
 
     private Instant submittedAt;
     private Instant verifiedAt;

@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { campaignService } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import { Calendar, Target, Users, ArrowLeft, Send, CircleCheck, CircleX, Info } from 'lucide-react';
-import toast from 'react-hot-toast';
+import React, { useEffect, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { campaignService } from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { Calendar, Target, Users, ArrowLeft, Send, CircleCheck, CircleX, Info } from "lucide-react";
+import toast from "react-hot-toast";
 
 const CampaignDetail = () => {
   const { id } = useParams();
@@ -19,9 +19,9 @@ const CampaignDetail = () => {
   const fetchCampaign = async () => {
     try {
       const response = await campaignService.getById(id);
-      setCampaign(response.data);
+      setCampaign(response?.data?.data ?? null);
     } catch (error) {
-      toast.error('Failed to load campaign details');
+      toast.error("Failed to load campaign details");
     } finally {
       setLoading(false);
     }
@@ -29,10 +29,10 @@ const CampaignDetail = () => {
 
   const handleAction = async (action) => {
     try {
-      if (action === 'submit') await campaignService.submit(id);
-      if (action === 'approve') await campaignService.approve(id);
-      if (action === 'cancel') await campaignService.cancel(id);
-      
+      if (action === "submit") await campaignService.submit(id);
+      if (action === "approve") await campaignService.approve(id);
+      if (action === "cancel") await campaignService.cancel(id);
+
       toast.success(`Campaign ${action}ed successfully`);
       fetchCampaign();
     } catch (error) {
@@ -43,7 +43,9 @@ const CampaignDetail = () => {
   if (loading) return <div className="loading-container">Loading...</div>;
   if (!campaign) return <div className="error-container">Campaign not found</div>;
 
-  const progress = Math.min((campaign.totalPledged / campaign.fundingGoal) * 100, 100);
+  const status = campaign?.status ?? "UNKNOWN";
+  const statusClass = String(status).toLowerCase();
+  const progress = Math.min(((campaign.totalPledged ?? 0) / (campaign.fundingGoal ?? 1)) * 100, 100);
 
   return (
     <div className="detail-page-container">
@@ -56,37 +58,27 @@ const CampaignDetail = () => {
       <div className="detail-grid">
         <div className="main-info">
           <div className="campaign-badge-row">
-            <span className={`status-pill ${campaign.status.toLowerCase()}`}>
-              {campaign.status}
-            </span>
+            <span className={`status-pill ${statusClass}`}>{status}</span>
             <span className="campaign-id">ID: #{campaign.id}</span>
           </div>
-          
+
           <h1>{campaign.title}</h1>
+          <p className="description"><strong>Category:</strong> {campaign.category ?? "General"}</p>
           <p className="description">{campaign.description}</p>
 
           <div className="detail-actions">
-            {user.role === 'CAMPAIGNER' && campaign.status === 'DRAFT' && (
-              <button 
-                onClick={() => handleAction('submit')}
-                className="btn btn-primary btn-lg"
-              >
+            {user.role === "CAMPAIGNER" && campaign.status === "DRAFT" && (
+              <button onClick={() => handleAction("submit")} className="btn btn-primary btn-lg">
                 <Send size={18} /> Submit for Approval
               </button>
             )}
 
-            {user.role === 'ADMIN' && campaign.status === 'PENDING_APPROVAL' && (
+            {user.role === "ADMIN" && campaign.status === "PENDING_APPROVAL" && (
               <div className="admin-btn-group">
-                <button 
-                  onClick={() => handleAction('approve')}
-                  className="btn btn-success btn-lg"
-                >
+                <button onClick={() => handleAction("approve")} className="btn btn-success btn-lg">
                   <CircleCheck size={18} /> Approve Campaign
                 </button>
-                <button 
-                  onClick={() => handleAction('cancel')}
-                  className="btn btn-danger btn-lg"
-                >
+                <button onClick={() => handleAction("cancel")} className="btn btn-danger btn-lg">
                   <CircleX size={18} /> Reject/Cancel
                 </button>
               </div>
@@ -94,7 +86,7 @@ const CampaignDetail = () => {
           </div>
 
           <div className="links-section">
-            <Link to={`/milestones`} className="link-card">
+            <Link to={`/milestones/${id}`} className="link-card">
               <div className="link-icon"><Target /></div>
               <div className="link-text">
                 <h3>View Milestones</h3>
@@ -102,8 +94,7 @@ const CampaignDetail = () => {
               </div>
             </Link>
 
-            {/* ADMIN: deep-link to per-campaign Escrow page */}
-            {user.role === 'ADMIN' && (
+            {user.role === "ADMIN" && (
               <Link to={`/escrow/${id}`} className="link-card escrow-link-card">
                 <div className="link-icon">🔐</div>
                 <div className="link-text">
@@ -123,7 +114,7 @@ const CampaignDetail = () => {
               <strong>₹{campaign.totalPledged?.toLocaleString()}</strong>
             </div>
             <div className="progress-bar-large">
-              <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+              <div className="progress-fill" style={{ width: `${progress}%` }} />
             </div>
             <div className="goal-amount">
               Goal: ₹{campaign.fundingGoal?.toLocaleString()}
@@ -135,10 +126,10 @@ const CampaignDetail = () => {
               <span>Ends on {new Date(campaign.endDate).toLocaleDateString()}</span>
             </div>
 
-            {user.role === 'BACKER' && campaign.status === 'ACTIVE' && (
+            {user.role === "BACKER" && campaign.status === "ACTIVE" && (
               <button
                 className="btn btn-primary btn-block btn-lg mt-4"
-                onClick={() => navigate('/pledges', { state: { campaignId: campaign.id } })}
+                onClick={() => navigate("/pledges", { state: { campaignId: campaign.id } })}
               >
                 Pledge to this Campaign
               </button>

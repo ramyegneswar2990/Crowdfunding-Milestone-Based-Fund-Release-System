@@ -13,12 +13,14 @@ import com.example.CrowdFunding.exception.ResourceNotFoundException;
 import com.example.CrowdFunding.exception.UnauthorizedActionException;
 import com.example.CrowdFunding.repository.CampaignRepository;
 import com.example.CrowdFunding.repository.EscrowHoldingRepository;
+import com.example.CrowdFunding.repository.MilestoneRepository;
 import com.example.CrowdFunding.repository.PledgeRepository;
 import com.example.CrowdFunding.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -30,17 +32,20 @@ public class CampaignService {
     private final UserRepository userRepository;
     private final EscrowHoldingRepository escrowHoldingRepository;
     private final PledgeRepository pledgeRepository;
+    private final MilestoneRepository milestoneRepository;
     private final ActivityLogService activityLogService;
 
     public CampaignService(CampaignRepository campaignRepository,
                            UserRepository userRepository,
                            EscrowHoldingRepository escrowHoldingRepository,
                            PledgeRepository pledgeRepository,
+                           MilestoneRepository milestoneRepository,
                            ActivityLogService activityLogService) {
         this.campaignRepository = campaignRepository;
         this.userRepository = userRepository;
         this.escrowHoldingRepository = escrowHoldingRepository;
         this.pledgeRepository = pledgeRepository;
+        this.milestoneRepository = milestoneRepository;
         this.activityLogService = activityLogService;
     }
 
@@ -65,6 +70,7 @@ public class CampaignService {
                 .campaigner(campaigner)
                 .title(req.getTitle())
                 .description(req.getDescription())
+                .category(req.getCategory())
                 .fundingGoal(req.getFundingGoal())
                 .startDate(req.getStartDate())
                 .endDate(req.getEndDate())
@@ -120,6 +126,15 @@ public class CampaignService {
         campaign.setStatus(CampaignStatus.ACTIVE);
         campaign = campaignRepository.save(campaign);
         activityLogService.log(campaign, caller, "APPROVED", "Campaign approved and set ACTIVE");
+
+        // If milestones already exist, unlock the first one so the campaigner can submit it.
+        milestoneRepository.findByCampaignIdOrderBySequenceNumberAsc(campaignId).stream()
+                .filter(m -> m.getStatus() == com.example.CrowdFunding.enums.MilestoneStatus.LOCKED)
+                .findFirst()
+                .ifPresent(m -> {
+                    m.setStatus(com.example.CrowdFunding.enums.MilestoneStatus.ACTIVE);
+                    milestoneRepository.save(m);
+                });
         return toResponse(campaign);
     }
 
@@ -149,6 +164,44 @@ public class CampaignService {
         activityLogService.log(campaign, caller, "CANCELLED",
                 "Campaign cancelled; COMPLETED pledges marked REFUNDED");
         return toResponse(campaign);
+    }
+
+    public void evaluateExpiredCampaigns() {
+        List<Campaign> expiring = campaignRepository.findByStatusInAndEndDateBefore(
+                List.of(CampaignStatus.ACTIVE, CampaignStatus.FUNDED),
+                LocalDate.now().plusDays(1)
+        );
+
+        for (Campaign campaign : expiring) {
+            if (campaign.getTotalPledged().compareTo(campaign.getFundingGoal()) >= 0) {
+                if (campaign.getStatus() == CampaignStatus.FUNDED) {
+                    campaign.setStatus(CampaignStatus.IN_PROGRESS);
+                    campaignRepository.save(campaign);
+                    activityLogService.log(campaign, null, "IN_PROGRESS",
+                            "Campaign funding window ended and moved to IN_PROGRESS");
+                }
+                continue;
+            }
+
+            campaign.setStatus(CampaignStatus.FAILED);
+            campaignRepository.save(campaign);
+            activityLogService.log(campaign, null, "FAILED", "Campaign failed to reach funding goal");
+
+            pledgeRepository.findByCampaignIdAndStatus(campaign.getId(), PledgeStatus.COMPLETED)
+                    .forEach(p -> {
+                        p.setStatus(PledgeStatus.REFUNDED);
+                        pledgeRepository.save(p);
+                    });
+
+            EscrowHolding escrow = escrowHoldingRepository.findByCampaignId(campaign.getId()).orElse(null);
+            if (escrow != null) {
+                escrow.setRemaining(BigDecimal.ZERO);
+                escrowHoldingRepository.save(escrow);
+            }
+
+            activityLogService.log(campaign, null, "REFUNDS_INITIATED",
+                    "Completed pledges marked refunded due to campaign failure");
+        }
     }
 
     // ─── QUERIES ─────────────────────────────────────────────────────────────
@@ -196,6 +249,7 @@ public class CampaignService {
                 .campaignerId(c.getCampaigner().getId())
                 .title(c.getTitle())
                 .description(c.getDescription())
+                .category(c.getCategory())
                 .fundingGoal(c.getFundingGoal())
                 .totalPledged(c.getTotalPledged())
                 .totalReleased(c.getTotalReleased())

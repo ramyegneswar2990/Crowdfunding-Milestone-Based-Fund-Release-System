@@ -30,6 +30,8 @@ const RegisterPage = () => {
 
   return (
     <div className="auth-page">
+      <div className="auth-glow auth-glow--one" />
+      <div className="auth-glow auth-glow--two" />
       <div className="auth-card">
         <div className="auth-brand">
           <span className="auth-brand-icon">◈</span>
@@ -37,6 +39,19 @@ const RegisterPage = () => {
         </div>
         <h1 className="auth-title">Create your account</h1>
         <p className="auth-sub">Join the platform and start making an impact.</p>
+
+        <div className="auth-social-stack">
+          <button type="button" className="auth-social-btn">
+            Continue with Google
+          </button>
+          <button type="button" className="auth-social-btn">
+            Continue with GitHub
+          </button>
+        </div>
+
+        <div className="auth-divider">
+          <span>Or</span>
+        </div>
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <div className="auth-field">

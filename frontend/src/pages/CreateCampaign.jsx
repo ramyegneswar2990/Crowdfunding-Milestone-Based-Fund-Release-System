@@ -9,6 +9,7 @@ const CreateCampaign = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    category: '',
     fundingGoal: 50000,
     startDate: '',
     endDate: ''
@@ -20,6 +21,7 @@ const CreateCampaign = () => {
     const newErrors = {};
     if (!formData.title || formData.title.length < 5) newErrors.title = 'Title must be at least 5 characters';
     if (!formData.description || formData.description.length < 20) newErrors.description = 'Description must be at least 20 characters';
+    if (!formData.category || formData.category.length < 3) newErrors.category = 'Category is required';
     
     if (formData.fundingGoal < 50000 || formData.fundingGoal > 5000000) {
       newErrors.fundingGoal = 'Funding goal must be between ₹50,000 and ₹50,00,000';
@@ -53,10 +55,14 @@ const CreateCampaign = () => {
     setLoading(true);
     try {
       const response = await campaignService.create(formData);
+      const createdCampaign = response?.data?.data;
+      if (!createdCampaign?.id) {
+        throw new Error('Campaign created but no ID returned');
+      }
       toast.success('Campaign created successfully in DRAFT!');
-      navigate(`/campaigns/${response.data.id}`);
+      navigate(`/campaigns/${createdCampaign.id}`);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create campaign');
+      toast.error(error.response?.data?.message || error.message || 'Failed to create campaign');
     } finally {
       setLoading(false);
     }
@@ -88,6 +94,21 @@ const CreateCampaign = () => {
                 />
               </div>
               {errors.title && <span className="error-text">{errors.title}</span>}
+            </div>
+
+            <div className="form-group">
+              <label>Category</label>
+              <div className="input-with-icon">
+                <Target className="input-field-icon" />
+                <input
+                  type="text"
+                  placeholder="e.g. Technology, Education, Health"
+                  value={formData.category}
+                  onChange={(e) => setFormData({...formData, category: e.target.value})}
+                  className={errors.category ? 'input-error' : ''}
+                />
+              </div>
+              {errors.category && <span className="error-text">{errors.category}</span>}
             </div>
 
             <div className="form-group">

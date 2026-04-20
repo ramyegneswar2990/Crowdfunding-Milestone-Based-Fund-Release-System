@@ -1,6 +1,8 @@
 package com.example.CrowdFunding.controller;
 
 import com.example.CrowdFunding.dto.request.CreateMilestoneRequest;
+import com.example.CrowdFunding.dto.request.RejectMilestoneRequest;
+import com.example.CrowdFunding.dto.request.SubmitMilestoneRequest;
 import com.example.CrowdFunding.dto.response.ApiResponse;
 import com.example.CrowdFunding.dto.response.MilestoneResponse;
 import com.example.CrowdFunding.service.MilestoneService;
@@ -37,12 +39,13 @@ public class MilestoneController {
     }
 
     @PutMapping("/{id}/submit")
-    @Operation(summary = "Submit milestone completion (CAMPAIGNER only)")
+    @Operation(summary = "Submit milestone completion with bill reference (CAMPAIGNER only)")
     public ResponseEntity<ApiResponse<MilestoneResponse>> submit(
             @PathVariable Long id,
+            @Valid @RequestBody SubmitMilestoneRequest req,
             @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(ApiResponse.ok("Milestone submitted for verification",
-                milestoneService.submitMilestone(id, principal.getUsername())));
+                milestoneService.submitMilestone(id, req.getBillReference(), principal.getUsername())));
     }
 
     @PutMapping("/{id}/verify")
@@ -58,9 +61,10 @@ public class MilestoneController {
     @Operation(summary = "Reject milestone (VERIFIER only)")
     public ResponseEntity<ApiResponse<MilestoneResponse>> reject(
             @PathVariable Long id,
+            @Valid @RequestBody RejectMilestoneRequest req,
             @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(ApiResponse.ok("Milestone rejected",
-                milestoneService.rejectMilestone(id, principal.getUsername())));
+                milestoneService.rejectMilestone(id, req.getReason(), principal.getUsername())));
     }
 
     @GetMapping("/campaign/{campaignId}")
